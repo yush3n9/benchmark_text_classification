@@ -105,7 +105,7 @@ print('MNB Accuracy: %f' % (100 * accuracy_score(predicted, y_test)))
 # -------------------------
 
 
-num_topics = 50
+num_topics = 20
 dictionary_path = './dict'
 corpus_path = './corpus'
 lda_path = './lda'
