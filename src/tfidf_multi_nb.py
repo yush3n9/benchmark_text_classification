@@ -105,10 +105,10 @@ print('MNB Accuracy: %f' % (100 * accuracy_score(predicted, y_test)))
 
 
 num_topics = 50
-dictionary_path = '../dict'
-corpus_path = '../corpus'
-lda_path = '../lda'
-token_path = '../tokens'
+dictionary_path = './dict'
+corpus_path = './corpus'
+lda_path = './lda'
+token_path = './tokens'
 
 
 def text_preprocessing(documents):
