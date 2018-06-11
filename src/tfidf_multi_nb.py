@@ -15,6 +15,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import LinearSVC
 from tqdm import tqdm
 import spacy
+
 nlp = spacy.load('en')
 from src.utils.newsgroup_dataprovider import TwentyNewsgroup
 import src.utils.text_preprocessing as tp
@@ -66,7 +67,7 @@ vectorizer = TfidfVectorizer(stop_words='english')  # accuracy 83.75 83,83
 # Reduce size of train manuelly
 ######################
 X_train_small, y_train_small = list(), list()
-size_category = 100
+size_category = 200
 cat_counter = dict()
 for _x, _y in zip(dp.fetch_dataset_train().data, dp.fetch_dataset_train().target):
     if _y in cat_counter:
@@ -103,7 +104,7 @@ print('MNB Accuracy: %f' % (100 * accuracy_score(predicted, y_test)))
 # -------------------------
 
 
-num_topics = 10
+num_topics = 50
 dictionary_path = '../dict'
 corpus_path = '../corpus'
 lda_path = '../lda'
@@ -111,26 +112,27 @@ token_path = '../tokens'
 
 
 def text_preprocessing(documents):
-    #https://www.analyticsvidhya.com/blog/2016/08/beginners-guide-to-topic-modeling-in-python/
+    # https://www.analyticsvidhya.com/blog/2016/08/beginners-guide-to-topic-modeling-in-python/
     # stop words removal
     # prunduction
     # word frequency filter
     # POS filter
-    cleaned_documents = [tp.clean_single_doc(doc) for doc in tqdm(documents)]
-    nlp_docs = [nlp(clean_text) for clean_text in tqdm(cleaned_documents)]
-    tokenized_docs = [tp.filter_single_nlp_doc(doc) for doc in tqdm(nlp_docs)]
+    cleaned_documents = [tp.clean_single_doc(doc) for doc in tqdm(documents, 'Text cleaning')]
+    nlp_docs = [nlp(clean_text) for clean_text in tqdm(cleaned_documents, 'Spacy nlu processing')]
+    tokenized_docs = [tp.filter_single_nlp_doc(doc) for doc in tqdm(nlp_docs, 'nlp POS filtering')]
 
-    pickle.dump(tokenized_docs, '{}/{}'.format(token_path, len(documents)))
+    with open('{}/{}'.format(token_path, len(documents)), 'wb') as f:
+        pickle.dump(tokenized_docs, f)
     return tokenized_docs
 
 
 def load_tokens(documents):
     for dirpath, dirnames, files in os.walk(token_path):
         if files:
-            return pickle.load('{}/{}'.format(token_path, len(documents)))
+            with open('{}/{}'.format(token_path, len(documents)), 'rb') as f:
+                return pickle.load(f)
         if not files:
-            return text_preprocessing(tokens)
-
+            return text_preprocessing(documents)
 
 
 def tokenize(documents):
@@ -148,28 +150,28 @@ def tokenize(documents):
 
 def build_dictionary(tokens):
     dictionary = corpora.Dictionary(tokens)
-    dictionary.save(dictionary_path + '/dict.dict')
+    dictionary.save('{}/{}.dict'.format(dictionary_path, len(tokens)))
     return dictionary
 
 
 def load_dictionary(tokens):
     for dirpath, dirnames, files in os.walk(dictionary_path):
         if files:
-            return corpora.Dictionary.load(dictionary_path + '/dict.dict')
+            return corpora.Dictionary.load('{}/{}.dict'.format(dictionary_path, len(tokens)))
         if not files:
             return build_dictionary(tokens)
 
 
 def build_corpus(dictionary, tokens):
     corpus = [dictionary.doc2bow(text) for text in tokens]
-    corpora.MmCorpus.serialize(corpus_path + '/corpus.mm', corpus)
+    corpora.MmCorpus.serialize('{}/corpus{}.mm'.format(corpus_path, len(tokens)), corpus)
     return corpus
 
 
 def load_corpus(dictionary, tokens):
     for dirpath, dirnames, files in os.walk(corpus_path):
         if files:
-            return corpora.MmCorpus(corpus_path + '/corpus.mm')
+            return corpora.MmCorpus('{}/corpus{}.mm'.format(corpus_path, len(tokens)))
         if not files:
             return build_corpus(dictionary, tokens)
 
@@ -184,21 +186,21 @@ def display_topics(model, feature_names, no_top_words):
 def load_ldamodel(tokens, dictionary, corpus):
     for dirpath, dirnames, files in os.walk(lda_path):
         if files:
-            return models.LdaModel.load(lda_path + '/lda.model', mmap='r')
+            return models.LdaModel.load('{}/lda{}.model'.format(lda_path, num_topics), mmap='r')
         if not files:
             gensim_lda = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics)
-            gensim_lda.save(lda_path + '/lda.model')
+            gensim_lda.save('{}/lda{}.model'.format(lda_path, num_topics))
             return gensim_lda
 
 
 if __name__ == '__main__':
-    #tokens = tokenize(dp.fetch_dataset_train().data)
+    # tokens = tokenize(dp.fetch_dataset_train().data)
     tokens = tokenize(X_train_small)
     print(tokens[0])
 
-    tokens2 = text_preprocessing(X_train_small)
+    # tokens2 = text_preprocessing(X_train_small)
+    tokens2 = load_tokens(X_train_small)
     print(tokens2[0])
-
 
     dictionary = load_dictionary(tokens)
     corpus = load_corpus(dictionary, tokens)
@@ -212,7 +214,7 @@ if __name__ == '__main__':
     # lda.fit(X_train)
 
     X_train_bow = [dictionary.doc2bow(word_tokenize(train_doc)) for train_doc in
-                  tqdm(X_train_small, 'Build corpus on trainset')]
+                   tqdm(X_train_small, 'Build corpus on trainset')]
 
     X_test_bow = [dictionary.doc2bow(word_tokenize(test_doc)) for test_doc in
                   tqdm(dp.fetch_dataset_test().data, 'Build corpus on testset')]
@@ -238,7 +240,7 @@ if __name__ == '__main__':
 
     # MNB works not good on lda
     # Try SVM
-    #clf = LinearSVC(C=1, penalty="l1", dual=False, tol=1e-4)
+    # clf = LinearSVC(C=1, penalty="l1", dual=False, tol=1e-4)
 
     clf.fit(training_features, y_train_small)
     predicted = clf.predict(testing_features)

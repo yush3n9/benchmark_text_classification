@@ -55,7 +55,7 @@ def filter_single_nlp_doc(doc):
              (token.tag_ in tags_to_keep and not token.is_stop and not token.ent_type_ in entities_to_remove)])
         filtered_doc = filtered_doc + ' ' + sent_filt_text
 
-    return filtered_doc
+    return filtered_doc.split()
 
 # Method use pos_
 def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
@@ -64,4 +64,4 @@ def lemmatization(texts, allowed_postags=['NOUN', 'ADJ', 'VERB', 'ADV']):
     for sent in texts:
         doc = nlp(" ".join(sent))
         texts_out.append([token.lemma_ for token in doc if token.pos_ in allowed_postags])
-    return texts_out
+    return texts_out.split()
