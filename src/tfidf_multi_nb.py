@@ -67,7 +67,7 @@ vectorizer = TfidfVectorizer(stop_words='english')  # accuracy 83.75 83,83
 # Reduce size of train manuelly
 ######################
 X_train_small, y_train_small = list(), list()
-size_category = 5
+size_category = 200
 cat_counter = dict()
 for _x, _y in zip(dp.fetch_dataset_train().data, dp.fetch_dataset_train().target):
     if _y in cat_counter:
