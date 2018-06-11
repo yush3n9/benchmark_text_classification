@@ -67,7 +67,7 @@ vectorizer = TfidfVectorizer(stop_words='english')  # accuracy 83.75 83,83
 # Reduce size of train manuelly
 ######################
 X_train_small, y_train_small = list(), list()
-size_category = 200
+size_category = 5
 cat_counter = dict()
 for _x, _y in zip(dp.fetch_dataset_train().data, dp.fetch_dataset_train().target):
     if _y in cat_counter:
@@ -127,12 +127,11 @@ def text_preprocessing(documents):
 
 
 def load_tokens(documents):
-    for dirpath, dirnames, files in os.walk(token_path):
-        if files:
-            with open('{}/{}'.format(token_path, len(documents)), 'rb') as f:
-                return pickle.load(f)
-        if not files:
-            return text_preprocessing(documents)
+    if os.path.isfile('{}/{}'.format(token_path, len(documents))):
+        with open('{}/{}'.format(token_path, len(documents)), 'rb') as f:
+            return pickle.load(f)
+    else:
+        return text_preprocessing(documents)
 
 
 def tokenize(documents):
@@ -155,11 +154,10 @@ def build_dictionary(tokens):
 
 
 def load_dictionary(tokens):
-    for dirpath, dirnames, files in os.walk(dictionary_path):
-        if files:
-            return corpora.Dictionary.load('{}/{}.dict'.format(dictionary_path, len(tokens)))
-        if not files:
-            return build_dictionary(tokens)
+    if os.path.isfile('{}/{}.dict'.format(dictionary_path, len(tokens))):
+        return corpora.Dictionary.load('{}/{}.dict'.format(dictionary_path, len(tokens)))
+    else:
+        return build_dictionary(tokens)
 
 
 def build_corpus(dictionary, tokens):
@@ -169,11 +167,10 @@ def build_corpus(dictionary, tokens):
 
 
 def load_corpus(dictionary, tokens):
-    for dirpath, dirnames, files in os.walk(corpus_path):
-        if files:
-            return corpora.MmCorpus('{}/corpus{}.mm'.format(corpus_path, len(tokens)))
-        if not files:
-            return build_corpus(dictionary, tokens)
+    if os.path.isfile('{}/corpus{}.mm'.format(corpus_path, len(tokens))):
+        return corpora.MmCorpus('{}/corpus{}.mm'.format(corpus_path, len(tokens)))
+    else:
+        return build_corpus(dictionary, tokens)
 
 
 def display_topics(model, feature_names, no_top_words):
@@ -184,13 +181,12 @@ def display_topics(model, feature_names, no_top_words):
 
 
 def load_ldamodel(tokens, dictionary, corpus):
-    for dirpath, dirnames, files in os.walk(lda_path):
-        if files:
-            return models.LdaModel.load('{}/lda{}.model'.format(lda_path, num_topics), mmap='r')
-        if not files:
-            gensim_lda = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics)
-            gensim_lda.save('{}/lda{}.model'.format(lda_path, num_topics))
-            return gensim_lda
+    if os.path.isfile('{}/lda{}.model'.format(lda_path, num_topics)):
+        return models.LdaModel.load('{}/lda{}.model'.format(lda_path, num_topics), mmap='r')
+    else:
+        gensim_lda = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics)
+        gensim_lda.save('{}/lda{}.model'.format(lda_path, num_topics))
+        return gensim_lda
 
 
 if __name__ == '__main__':
