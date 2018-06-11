@@ -20,6 +20,7 @@ nlp = spacy.load('en')
 from src.utils.newsgroup_dataprovider import TwentyNewsgroup
 import src.utils.text_preprocessing as tp
 import pickle
+from gensim.models import CoherenceModel
 
 
 # http://nadbordrozd.github.io/blog/2016/05/20/text-classification-with-word2vec/
@@ -201,6 +202,12 @@ if __name__ == '__main__':
     dictionary = load_dictionary(tokens)
     corpus = load_corpus(dictionary, tokens)
     gensim_lda = load_ldamodel(tokens, dictionary, corpus)
+
+    # Compute Coherence Score
+    coherence_model_lda = CoherenceModel(model=gensim_lda, texts=tokens, dictionary=dictionary, coherence='c_v')
+    coherence_lda = coherence_model_lda.get_coherence()
+    print('\nCoherence Score: ', coherence_lda)
+
 
     # pprint(gensim_lda.print_topics())
 
