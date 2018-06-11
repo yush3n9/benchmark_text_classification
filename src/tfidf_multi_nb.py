@@ -199,8 +199,8 @@ if __name__ == '__main__':
     print(tokens[0])
 
     # tokens2 = text_preprocessing(X_train_small)
-    tokens2 = load_tokens(X_train_small)
-    print(tokens2[0])
+    tokens = load_tokens(X_train_small)
+    print(tokens[0])
 
     dictionary = load_dictionary(tokens)
     corpus = load_corpus(dictionary, tokens)
