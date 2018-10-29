@@ -14,7 +14,7 @@ class TwentyNewsgroup(IterableDataProvider):
         return len(self.categories)
 
     def fetch_dataset_train(self):
-        return fetch_20newsgroups(subset='train', categories=self.categories, random_state=self.random_state)
+        return fetch_20newsgroups(subset='train', categories=self.categories, random_state=self.random_state, remove=('headers', 'footers', 'quotes'))
 
     def fetch_dataset_test(self):
-        return fetch_20newsgroups(subset='test', categories=self.categories, random_state=self.random_state)
+        return fetch_20newsgroups(subset='test', categories=self.categories, random_state=self.random_state, remove=('headers', 'footers', 'quotes'))

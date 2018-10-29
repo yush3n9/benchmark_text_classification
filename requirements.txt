@@ -7,3 +7,4 @@ tensorflow
 nltk
 tqdm
 textacy
+lda

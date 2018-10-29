@@ -2,19 +2,18 @@
 # -*- coding: utf-8 -*-
 
 
-import os
 from collections import defaultdict
 
 import gensim.matutils as matutils
+import numpy as np
+import spacy
 from gensim import corpora, models
 from nltk import word_tokenize
 from nltk.stem import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.svm import LinearSVC
 from tqdm import tqdm
-import spacy
 
 nlp = spacy.load('en')
 from src.utils.newsgroup_dataprovider import TwentyNewsgroup
@@ -22,11 +21,14 @@ import src.utils.text_preprocessing as tp
 import pickle
 from gensim.models import CoherenceModel
 
-
 # http://nadbordrozd.github.io/blog/2016/05/20/text-classification-with-word2vec/
 # https://richliao.github.io/supervised/classification/2016/11/26/textclassifier-convolutional/
 # https://arxiv.org/pdf/1607.01759.pdf
 # https://statsbot.co/blog/text-classifier-algorithms-in-machine-learning/
+
+
+random_state = 42
+n_features = 500
 
 
 def stemming_tokenizer(text):
@@ -60,7 +62,7 @@ dp = TwentyNewsgroup(categories=[
     'talk.religion.misc'])
 
 # vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.5, stop_words='english')
-vectorizer = TfidfVectorizer(stop_words='english')  # accuracy 83.75 83,83
+vectorizer = TfidfVectorizer(stop_words='english', max_features=n_features)  # accuracy 83.75 83,83
 # vectorizer = TfidfVectorizer(stop_words=stopwords.words('english'))  # 83.72 83.83
 
 
@@ -68,23 +70,28 @@ vectorizer = TfidfVectorizer(stop_words='english')  # accuracy 83.75 83,83
 # Reduce size of train manuelly
 ######################
 X_train_small, y_train_small = list(), list()
-size_category = 200
-cat_counter = dict()
-for _x, _y in zip(dp.fetch_dataset_train().data, dp.fetch_dataset_train().target):
-    if _y in cat_counter:
-        if cat_counter[_y] < size_category:
-            X_train_small.append(_x)
-            y_train_small.append(_y)
-            cat_counter[_y] += 1
-        else:
-            # print('Category is full ...')
-            continue
-    else:
-        X_train_small.append(_x)
-        y_train_small.append(_y)
-        cat_counter[_y] = 1
+# size_category = 50
+# cat_counter = dict()
+# for _x, _y in zip(dp.fetch_dataset_train().data, dp.fetch_dataset_train().target):
+#     if _y in cat_counter:
+#         if cat_counter[_y] < size_category:
+#             X_train_small.append(_x)
+#             y_train_small.append(_y)
+#             cat_counter[_y] += 1
+#         else:
+#             # print('Category is full ...')
+#             continue
+#     else:
+#         X_train_small.append(_x)
+#         y_train_small.append(_y)
+#         cat_counter[_y] = 1
 
 # X_train = vectorizer.fit_transform(dp.fetch_dataset_train().data)
+
+n_samples = 1000
+X_train_small = dp.fetch_dataset_train().data[:n_samples]
+y_train_small = dp.fetch_dataset_train().target[:n_samples]
+
 X_train = vectorizer.fit_transform(X_train_small)
 X_test = vectorizer.transform(dp.fetch_dataset_test().data)
 
@@ -103,13 +110,13 @@ print('MNB Accuracy: %f' % (100 * accuracy_score(predicted, y_test)))
 # -------------------------
 # LDA as features
 # -------------------------
+import os
 
-
-num_topics = 20
-dictionary_path = './dict'
-corpus_path = './corpus'
-lda_path = './lda'
-token_path = './tokens'
+num_topics = 40
+dictionary_path = 'dict'
+corpus_path = 'corpus'
+lda_path = 'lda'
+token_path = 'tokens'
 
 
 def text_preprocessing(documents):
@@ -119,8 +126,11 @@ def text_preprocessing(documents):
     # word frequency filter
     # POS filter
     cleaned_documents = [tp.clean_single_doc(doc) for doc in tqdm(documents, 'Text cleaning')]
-    nlp_docs = [nlp(clean_text) for clean_text in tqdm(cleaned_documents, 'Spacy nlu processing')]
-    tokenized_docs = [tp.filter_single_nlp_doc(doc) for doc in tqdm(nlp_docs, 'nlp POS filtering')]
+    # nlp_docs = [nlp(clean_text) for clean_text in tqdm(cleaned_documents, 'Spacy nlu processing')]
+    # tokenized_docs = [tp.filter_single_nlp_doc(doc) for doc in tqdm(nlp_docs, 'nlp POS filtering')]
+
+    import nltk
+    tokenized_docs = [nltk.word_tokenize(doc) for doc in tqdm(cleaned_documents, 'nltk tokenizing')]
 
     with open('{}/{}'.format(token_path, len(documents)), 'wb') as f:
         pickle.dump(tokenized_docs, f)
@@ -185,19 +195,21 @@ def load_ldamodel(tokens, dictionary, corpus):
     if os.path.isfile('{}/lda{}.model'.format(lda_path, num_topics)):
         return models.LdaModel.load('{}/lda{}.model'.format(lda_path, num_topics), mmap='r')
     else:
-        gensim_lda = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics)
+        gensim_lda = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, passes=10)
         gensim_lda.save('{}/lda{}.model'.format(lda_path, num_topics))
         return gensim_lda
 
 
-if __name__ == '__main__':
+def use_gensim_lda():
     # tokens = tokenize(dp.fetch_dataset_train().data)
-    tokens = tokenize(X_train_small)
-    print(tokens[0])
+    # tokens = tokenize(X_train_small)
+    # print(tokens[0])
 
     # tokens2 = text_preprocessing(X_train_small)
-    tokens = load_tokens(X_train_small)
-    print(tokens[0])
+    # tokens = load_tokens(X_train_small)
+    from gensim.utils import simple_preprocess
+    from gensim.parsing.preprocessing import STOPWORDS
+    tokens = [[t for t in simple_preprocess(text) if t not in STOPWORDS] for text in X_train_small]
 
     dictionary = load_dictionary(tokens)
     corpus = load_corpus(dictionary, tokens)
@@ -207,7 +219,8 @@ if __name__ == '__main__':
     coherence_model_lda = CoherenceModel(model=gensim_lda, texts=tokens, dictionary=dictionary, coherence='c_v')
     coherence_lda = coherence_model_lda.get_coherence()
     print('\nCoherence Score: ', coherence_lda)
-
+    for t in gensim_lda.print_topics(num_topics, 10):
+        print(t)
 
     # pprint(gensim_lda.print_topics())
 
@@ -226,9 +239,14 @@ if __name__ == '__main__':
     training_features = matutils.corpus2dense(training_features, num_terms=num_topics)
     training_features = training_features.T
 
+    print('{}+{}'.format(training_features.shape, X_train.shape))
+    combo_train_feature = np.append(training_features, X_train.todense(), 1)
+    print('{}+{}={}'.format(training_features.shape, X_train.shape, combo_train_feature.shape))
+
     testing_features = gensim_lda[tqdm(X_test_bow, 'topic modelling on testset')]
     testing_features = matutils.corpus2dense(testing_features, num_terms=num_topics)
     testing_features = testing_features.T
+    combo_test_feature = np.append(testing_features, X_test.todense(), 1)
 
     # print(len(training_features))
 
@@ -247,4 +265,45 @@ if __name__ == '__main__':
 
     clf.fit(training_features, y_train_small)
     predicted = clf.predict(testing_features)
-    print('lda svm Accuracy: %f' % (100 * accuracy_score(predicted, y_test)))
+    print('gensim lda NB Accuracy: %f' % (100 * accuracy_score(predicted, y_test)))
+
+
+
+
+def use_pypi_lda():
+    import lda
+    from sklearn.feature_extraction.text import CountVectorizer
+
+    vectorizer = CountVectorizer(max_features=n_features, stop_words='english')
+
+    bow_train = vectorizer.fit_transform(
+        tqdm([tp.clean_single_doc(doc) for doc in tqdm(X_train_small, 'Text cleaning')]))
+    bow_test = vectorizer.transform(
+        tqdm([tp.clean_single_doc(doc) for doc in tqdm(dp.fetch_dataset_test().data, 'Text cleaning')]))
+
+    model = lda.LDA(n_topics=num_topics, random_state=random_state).fit(bow_train)
+
+    topic_summaries = []
+    topic_word = model.topic_word_  # all topic words
+    for i, topic_dist in enumerate(topic_word):
+        topic_words = np.array(vectorizer.get_feature_names())[np.argsort(topic_dist)][:-(10 + 1):-1]  # get!
+        topic_summaries.append(' '.join(topic_words))  # append!
+    for t in topic_summaries:
+        print(t)
+
+    combo_train = np.append(model.transform(bow_train), X_train.todense(), 1)
+    combo_test = np.append(model.transform(bow_test), X_test.todense(), 1)
+
+    clf.fit(combo_train, y_train_small)
+
+    predicted = clf.predict(combo_test)
+    print('lda NB Accuracy: %f' % (100 * accuracy_score(predicted, y_test)))
+
+
+    clf.fit(bow_train, y_train_small)
+    predicted = clf.predict(bow_test)
+    print('lda NB pure Accuracy: %f' % (100 * accuracy_score(predicted, y_test)))
+
+if __name__ == '__main__':
+    use_gensim_lda()
+    use_pypi_lda()
